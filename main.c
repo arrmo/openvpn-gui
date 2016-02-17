@@ -168,6 +168,8 @@ int WINAPI _tWinMain (HINSTANCE hThisInstance,
   if (!GetRegistryKeys()) {
     exit(1);
   }
+  EnsureDirExists(o.config_dir);
+
   if (!CheckVersion()) {
     exit(1);
   }
