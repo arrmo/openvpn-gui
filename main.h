@@ -29,7 +29,7 @@
 
 /* Define this to enable DEBUG build */
 //#define DEBUG
-#define DEBUG_FILE	"c:\\openvpngui_debug.txt"
+#define DEBUG_FILE	L"C:\\windows\\temp\\openvpngui_debug.txt"
 
 /* Define this to disable Change Password support */
 //#define DISABLE_CHANGE_PASSWORD
