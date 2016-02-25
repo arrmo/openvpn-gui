@@ -44,6 +44,15 @@
 #define MAX_LOG_LINES		500	/* Max number of lines in LogWindow */
 #define DEL_LOG_LINES		10	/* Number of lines to delete from LogWindow */
 
+/* Application defined message IDs */
+#define WM_NOTIFYICONTRAY (WM_APP + 1)
+#define WM_MANAGEMENT (WM_APP + 2)
+/*
+ * ID of messages from other processes
+ * Currently wParam = ID_CONNECTMENU means start any autoconnect configs.
+ * Useful for rescanning autoconnect if the user starts a second instance.
+ */
+#define WM_REMOTE  (WM_APP + 3)
 
 
 /* bool definitions */

@@ -92,7 +92,6 @@ VerifyAutoConnections()
     return TRUE;
 }
 
-
 int WINAPI _tWinMain (HINSTANCE hThisInstance,
                     UNUSED HINSTANCE hPrevInstance,
                     UNUSED LPTSTR lpszArgument,
@@ -101,6 +100,7 @@ int WINAPI _tWinMain (HINSTANCE hThisInstance,
   MSG messages;            /* Here messages to the application are saved */
   WNDCLASSEX wincl;        /* Data structure for the windowclass */
   DWORD shell32_version;
+  HANDLE hwnd;
 
   /* Initialize handlers for manangement interface notifications */
   mgmt_rtmsg_handler handler[] = {
@@ -160,11 +160,20 @@ int WINAPI _tWinMain (HINSTANCE hThisInstance,
   ProcessCommandLine(&o, GetCommandLine());
 
   /* Check if a previous instance is already running. */
-  if ((FindWindow (szClassName, NULL)) != NULL)
+  if ((hwnd = FindWindow (szClassName, NULL)) != NULL)
     {
-        /* GUI already running */
-        ShowLocalizedMsg(IDS_ERR_GUI_ALREADY_RUNNING);
-        exit(1);
+        /* GUI already running -- send a message to autoconnect any configs */
+        SetForegroundWindow(hwnd);
+        if (o.auto_connect[0])
+        {
+           PostMessage (hwnd, WM_REMOTE, IDM_CONNECTMENU, 0);
+           exit(0);
+        }
+        else
+        {
+           ShowLocalizedMsg(IDS_ERR_GUI_ALREADY_RUNNING);
+           exit(1);
+        }
     }
 
   if (!GetRegistryKeys()) {
@@ -189,6 +198,7 @@ int WINAPI _tWinMain (HINSTANCE hThisInstance,
   if (!VerifyAutoConnections()) {
     exit(1);
   }
+
   GetProxyRegistrySettings();
 
 #ifndef DISABLE_CHANGE_PASSWORD
@@ -274,8 +284,12 @@ AutoStartConnections()
 
     for (i = 0; i < o.num_configs; i++)
     {
-        if (o.conn[i].auto_connect)
+        if (!o.conn[i].auto_connect)
+            continue;
+        else if (o.conn[i].state == disconnected)
             StartOpenVPN(&o.conn[i]);
+        else if (o.silent_connection[0] == _T('0'))
+            ShowWindow(o.conn[i].hwndStatus, SW_SHOW);
     }
 
     return TRUE;
@@ -333,6 +347,11 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
     	
     case WM_NOTIFYICONTRAY:
       OnNotifyTray(lParam); 	// Manages message from tray
+      break;
+
+    case WM_REMOTE:   // custom messages from other processes
+      if (wParam == IDM_CONNECTMENU)
+        AutoStartConnections();
       break;
 
     case WM_COMMAND:
