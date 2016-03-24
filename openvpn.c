@@ -671,10 +671,6 @@ OnService(connection_t *c, UNUSED char *msg)
     }
     free (buf);
 
-    /* Handle the error only if management is not connected */
-    if (c->manage.connected)
-        return;
-
     /* Error from iservice before management interface is connected */
     switch (err)
     {
@@ -702,22 +698,19 @@ OnService(connection_t *c, UNUSED char *msg)
 static void
 OnProcess (connection_t *c, UNUSED char *msg)
 {
-    if (!c->manage.connected)
-    {
-        DWORD err;
-        WCHAR tmp[256];
+    DWORD err;
+    WCHAR tmp[256];
 
-        if (!GetExitCodeProcess(c->hProcess, &err) || err == STILL_ACTIVE)
-            return;
+    if (!GetExitCodeProcess(c->hProcess, &err) || err == STILL_ACTIVE)
+        return;
 
-        _snwprintf(tmp, _countof(tmp),  L"OpenVPN terminated with exit code %lu. "
-                                        L"See the log file for details", err);
-        tmp[_countof(tmp)-1] = L'\0';
-        WriteStatusLog(c, L"OpenVPN GUI> ", tmp, false);
+    _snwprintf(tmp, _countof(tmp),  L"OpenVPN terminated with exit code %lu. "
+                                    L"See the log file for details", err);
+    tmp[_countof(tmp)-1] = L'\0';
+    WriteStatusLog(c, L"OpenVPN GUI> ", tmp, false);
 
-        c->state = timedout;   /* Force the popup message to include the log file name */
-        OnStop (c, NULL);
-    }
+    c->state = timedout;   /* Force the popup message to include the log file name */
+    OnStop (c, NULL);
 }
 
 /*
@@ -726,6 +719,8 @@ OnProcess (connection_t *c, UNUSED char *msg)
 static void
 Cleanup (connection_t *c)
 {
+    CloseManagement (c);
+
     if (c->hProcess)
         CloseHandle (c->hProcess);
     else
