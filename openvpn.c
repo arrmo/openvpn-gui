@@ -1115,6 +1115,12 @@ StartOpenVPNThread (connection_t *c)
 {
     HANDLE hThread;
 
+    if (c->hwndStatus)
+    {
+        PrintDebug(L"Connection request when previous status window is still open -- ignored");
+        SetForegroundWindow(c->hwndStatus);
+        return FALSE;
+    }
     PrintDebug(L"Starting thread to manage prestarted opnevpn for config \"%s\"", c->config_name);
 
     c->exit_event = NULL;
