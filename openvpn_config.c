@@ -232,7 +232,7 @@ PurgeConnections()
     DWORD i = 0;
     for ( c = &o.conn; *c; c = &(*c)->next)
     {
-        while (*c && (*c)->state == disconnected && CheckReadAccess ((*c)->config_dir, (*c)->config_file))
+        while (*c && (*c)->hwndStatus == NULL)
         {
             PrintDebug (L"PurgeConnections: deleting config %s", (*c)->config_name);
             found = *c;
