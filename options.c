@@ -348,7 +348,7 @@ GetConnById (int index)
 }
 
 void
-DeleteConnection (connection_t *c)
+FreeConnection (connection_t *c)
 {
     if (c)
     {

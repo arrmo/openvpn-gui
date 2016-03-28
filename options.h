@@ -127,7 +127,7 @@ connection_t *
 NewConnection (void);
 
 void
-DeleteConnection(connection_t *c);
+FreeConnection(connection_t *c);
 
 connection_t *
 GetConnByFile (const TCHAR *file);

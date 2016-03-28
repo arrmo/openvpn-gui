@@ -228,20 +228,26 @@ CheckReadAccess (const TCHAR *dir, const TCHAR *file)
 static DWORD
 PurgeConnections()
 {
-    connection_t **c, *found;
+    connection_t *c, *prev;
     DWORD i = 0;
-    for ( c = &o.conn; *c; c = &(*c)->next)
+
+    prev = NULL;
+    for ( c = o.conn; c; c = c->next)
     {
-        while (*c && (*c)->hwndStatus == NULL)
+        /* TODO: use the thread handle instead of hwndStatus to check thread is not active */
+        if (c->hwndStatus == NULL && !CheckReadAccess (c->config_dir, c->config_file)) 
         {
-            PrintDebug (L"PurgeConnections: deleting config %s", (*c)->config_name);
-            found = *c;
-            *c = found->next;
-            ReleaseIndex (found->index);
-            DeleteConnection (found);
+            PrintDebug (L"PurgeConnections: deleting config %s", c->config_name);
+            if (prev == NULL)
+                o.conn = c->next;
+            else
+                prev->next = c->next;
+            ReleaseIndex (c->index);
+            FreeConnection (c);
             ++i;
         }
-        if (!*c) break;
+        else
+            prev = c;
     }
     return i;
 }
@@ -288,7 +294,7 @@ AddConfigFileToList(const TCHAR *filename, const TCHAR *config_dir)
        ReleaseIndex (c->index);
        // TODO : implement proper delete connection
        o.conn = c->next;
-       DeleteConnection (c);
+       FreeConnection (c);
        return;
     }
     if (CountBySocketAddress(c->manage.host, c->manage.port) > 1)
@@ -298,7 +304,7 @@ AddConfigFileToList(const TCHAR *filename, const TCHAR *config_dir)
        ReleaseIndex (c->index);
        // TODO : implement proper delete connection
        o.conn = c->next;
-       DeleteConnection (c);
+       FreeConnection (c);
        return;
     }
 
