@@ -84,6 +84,14 @@ OpenManagement(connection_t *c)
         return FALSE;
     }
 
+    {
+        WCHAR host[46] = L"";
+        if (GetNameInfoW (addrinfo->ai_addr, addrinfo->ai_addrlen, host, 46, NULL, 0, NI_NUMERICHOST))
+            PrintDebug (L"GetNameInfo failed: error = %lu", WSAGetLastError());
+        else
+            PrintDebug (L"OpenManagement: config \"%s\" management host address = '%s'", c->config_name, host);
+    }
+
     c->manage.connected = FALSE;
     c->manage.sk = socket(addrinfo->ai_family, SOCK_STREAM, IPPROTO_TCP);
     FreeAddrInfo (addrinfo);
