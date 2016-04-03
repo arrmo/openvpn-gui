@@ -65,6 +65,7 @@ typedef enum {
 /* connection states */
 typedef enum {
     disconnected,
+    waiting,
     connecting,
     reconnecting,
     connected,
@@ -72,7 +73,6 @@ typedef enum {
     suspending,
     suspended,
     resuming,
-    timedout,
     onhold
 } conn_state_t;
 

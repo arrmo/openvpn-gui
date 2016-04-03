@@ -242,13 +242,10 @@ OnManagement(SOCKET sk, LPARAM lParam)
             if (time(NULL) < c->manage.timeout || c->flags & FLAG_PRESTARTED)
             {
                 connect(c->manage.sk, (SOCKADDR *) &c->manage.addr, sizeof(c->manage.addr));
-                PrintDebug (L"Config \"%s\" socket connect timeout. Trying again.", c->config_name);
             }
             else
             {
                 /* Connection to MI timed out. */
-                if (c->state != disconnected)
-                    c->state = timedout;
                 CloseManagement (c);
                 rtmsg_handler[stop](c, "");
             }
@@ -256,6 +253,7 @@ OnManagement(SOCKET sk, LPARAM lParam)
         else
         {
             c->manage.connected = TRUE;
+            c->state = connecting;
             PrintDebug(L"Config \"%s\": connected to management interface", c->config_name);
         }
         break;

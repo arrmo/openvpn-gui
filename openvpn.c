@@ -246,8 +246,9 @@ OnStateChange(connection_t *c, char *data)
     {
         c->state = connecting;
         SetMenuStatus(c, connecting);
-        SetTrayIcon(connecting);
+        CheckAndSetTrayIcon(connecting);
         SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTING));
+        SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
     }
     else if (strcmp(state, "RECONNECTING") == 0)
     {
@@ -491,12 +492,12 @@ OnStop(connection_t *c, UNUSED char *msg)
     case resuming:
     case connecting:
     case reconnecting:
-    case timedout:
+    case waiting:
         /* We have failed to (re)connect */
         txt_id = c->state == reconnecting ? IDS_NFO_STATE_FAILED_RECONN : IDS_NFO_STATE_FAILED;
         msg_id = c->state == reconnecting ? IDS_NFO_RECONN_FAILED : IDS_NFO_CONN_FAILED;
-        msg_xtra = c->state == timedout ? c->log_path : c->config_name;
-        if (c->state == timedout)
+        msg_xtra = c->state == waiting ? c->log_path : c->config_name;
+        if (c->state == waiting)
             msg_id = IDS_NFO_CONN_TIMEOUT;
 
         c->state = disconnected;
@@ -747,12 +748,10 @@ OnService(connection_t *c, UNUSED char *msg)
             break;
         case ERROR_STARTUP_DATA:
             WriteStatusLog (c, prefix, L"OpenVPN not started due to previous errors", true);
-            c->state = timedout;   /* Force the popup message to include the log file name */
             OnStop (c, NULL);
             break;
         case ERROR_OPENVPN_STARTUP:
             WriteStatusLog (c, prefix, L"Check the log file for details", false);
-            c->state = timedout;   /* Force the popup message to include the log file name */
             OnStop(c, NULL);
             break;
         default:
@@ -778,7 +777,6 @@ OnProcess (connection_t *c, UNUSED char *msg)
     tmp[_countof(tmp)-1] = L'\0';
     WriteStatusLog(c, L"OpenVPN GUI> ", tmp, false);
 
-    c->state = timedout;   /* Force the popup message to include the log file name */
     OnStop (c, NULL);
 }
 
@@ -820,7 +818,7 @@ StatusDialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
         c = (connection_t *) lParam;
 
         /* Set window icon "disconnected" */
-        SetStatusWinIcon(hwndDlg, ID_ICO_CONNECTING);
+        SetStatusWinIcon(hwndDlg, ID_ICO_DISCONNECTED);
 
         /* Set connection for this dialog */
         SetProp(hwndDlg, cfgProp, (HANDLE) c);
@@ -946,7 +944,7 @@ ThreadOpenVPNStatus(void *p)
     _tcsncpy(conn_name, c->config_file, _countof(conn_name));
     conn_name[_tcslen(conn_name) - _tcslen(o.ext_string) - 1] = _T('\0');
 
-    c->state = (c->state == suspended ? resuming : connecting);
+    c->state = (c->state == suspended ? resuming : waiting);
 
     /* Create and Show Status Dialog */
     c->hwndStatus = CreateLocalizedDialogParam(ID_DLG_STATUS, StatusDialogFunc, (LPARAM) c);
@@ -954,9 +952,11 @@ ThreadOpenVPNStatus(void *p)
         return 1;
 
     CheckAndSetTrayIcon();
-    SetMenuStatus(c, connecting);
-    SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTING));
+    SetMenuStatus (c, waiting);
+    SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, _T("Waiting for OpenVPN"));
     SetWindowText(c->hwndStatus, LoadLocalizedString(IDS_NFO_CONNECTION_XXX, conn_name));
+    EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
+    EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
 
     if (!OpenManagement(c))
         PostMessage(c->hwndStatus, WM_CLOSE, 0, 0);

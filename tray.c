@@ -395,7 +395,7 @@ SetMenuStatus(connection_t *c, conn_state_t state)
             EnableMenuItem(hMenu, MAKEWPARAM(IDM_DISCONNECTMENU ,index), MF_ENABLED);
             EnableMenuItem(hMenu, MAKEWPARAM(IDM_STATUSMENU ,index), MF_ENABLED);
         }
-        else if (state == disconnecting)
+        else if (state == waiting || state == disconnecting)
         {
             EnableMenuItem(hMenu, MAKEWPARAM(IDM_CONNECTMENU ,index), MF_GRAYED);
             EnableMenuItem(hMenu, MAKEWPARAM(IDM_DISCONNECTMENU ,index), MF_GRAYED);
@@ -431,7 +431,7 @@ SetMenuStatus(connection_t *c, conn_state_t state)
             EnableMenuItem(c->hMenuConn, MAKEWPARAM(IDM_DISCONNECTMENU, index), MF_ENABLED);
             EnableMenuItem(c->hMenuConn, MAKEWPARAM(IDM_STATUSMENU, index), MF_ENABLED);
         }
-        else if (state == disconnecting)
+        else if (state == waiting || state == disconnecting)
         {
             EnableMenuItem(c->hMenuConn, MAKEWPARAM(IDM_CONNECTMENU, index), MF_GRAYED);
             EnableMenuItem(c->hMenuConn, MAKEWPARAM(IDM_DISCONNECTMENU, index), MF_GRAYED);
