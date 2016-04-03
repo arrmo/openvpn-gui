@@ -68,9 +68,13 @@ OpenManagement(connection_t *c)
     DWORD status;
 
     CLEAR (hints);
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
+
+    /* OpenVPN 2.3_git and newer uses AF_UNSPEC to resolve the management host */
+    if (strtod (o.ovpn_version, NULL) > 2.3 || strncmp (o.ovpn_version, "2.3_git", 7) == 0)
+        hints.ai_family = AF_UNSPEC;
 
     if ( (status = GetAddrInfoW (c->manage.host, c->manage.port, &hints, &addrinfo)) == 0 &&
          addrinfo != NULL )

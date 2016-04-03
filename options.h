@@ -182,6 +182,7 @@ typedef struct {
     TCHAR disconnectscript_timeout_string[4];
     TCHAR preconnectscript_timeout_string[4];
     TCHAR ovpn_admin_group[MAX_NAME];
+    char ovpn_version[16];           /* e.g., "2.3.10"  or "2.3_git" */
 
 #ifdef DEBUG
     FILE *debug_fp;

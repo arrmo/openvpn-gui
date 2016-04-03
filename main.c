@@ -308,7 +308,7 @@ AutoStartConnections()
  * newly added configs and connections restarted by the service.
  */
 static void CALLBACK
-PollPrestarted (HWND hwnd, UINT mgs, UINT_PTR id, DWORD time)
+PollPrestarted (UNUSED HWND hwnd, UNUSED UINT mgs, UNUSED UINT_PTR id, UNUSED DWORD time)
 {
     connection_t *c;
 
@@ -575,9 +575,9 @@ CloseApplication(HWND hwnd)
 
     for (c = o.conn; c; c = c->next)
     {
-        if (c->state == disconnected || c->state == onhold)
+        PrintDebug (L"config \"%s\" in state %d on exit", c->config_file, c->state);
+        if (c->state == disconnected || c->flags & FLAG_PRESTARTED)
             continue;
-        PrintDebug (L"config \"%s\" active on exit", c->config_file);
         count++;
     }
     /* Ask for confirmation if any still connected */

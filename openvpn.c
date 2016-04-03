@@ -1491,7 +1491,13 @@ CheckVersion()
 
         /* OpenVPN version 2.x */
         if (strstr(line, match_version))
+        {
+            char fmt[10];
             retval = TRUE;
+            sprintf (fmt, "%%%ds", (int) _countof(o.ovpn_version)-1);
+            sscanf (line+8, fmt, o.ovpn_version);
+            PrintDebug (L"OpenVPN version: %S", o.ovpn_version);
+        }
     }
 
 out:
