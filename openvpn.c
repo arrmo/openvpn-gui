@@ -64,6 +64,61 @@ typedef struct {
     char *challenge_str;
 } auth_param_t;
 
+void
+SetState (connection_t *c, conn_state_t state)
+{
+    if (c->state == state) return;
+
+    c->state = state;
+    CheckAndSetTrayIcon();
+    SetMenuStatus (c, state);
+    EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
+    EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
+
+    switch (state)
+    {
+        case disconnected:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_DISCONNECTED));
+            SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
+            break;
+        case waiting:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, _T("Waiting for OpenVPN"));
+            SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
+            break;
+        case connecting:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTING));
+            SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
+            break;
+        case reconnecting:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_RECONNECTING));
+            SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
+            break;
+        case connected:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTED));
+            SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTED);
+            EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), TRUE);
+            EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), TRUE);
+            break;
+        case disconnecting:
+            /* fall through */
+        case suspending:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_WAIT_TERM));
+            break;
+        case suspended:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_SUSPENDED));
+            break;
+        case resuming:
+            SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, _T("Resuming"));
+            break;
+        case onhold:
+            SetDlgItemText (c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_SUSPENDED));
+            EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), TRUE);
+            EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
+            SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
+            break;
+    }
+}
+
 /*
  * Receive banner on connection to management interface
  * Format: <BANNER>
@@ -74,8 +129,7 @@ OnReady(connection_t *c, UNUSED char *msg)
     PrintDebug (L"<OnReady: \"%s\" state = %d", c->config_name, c->state);
     if (c->flags & FLAG_PRESTARTED)
     {
-        /* state is unknown until determined by OnHold or state change */
-        c->state = -1;
+        SetState (c, connecting);
         ManagementCommand(c, "state", OnStateChange, regular);
     }
     ManagementCommand(c, "state on", NULL, regular);
@@ -102,16 +156,10 @@ OnHold(connection_t *c, UNUSED char *msg)
     {
         /* stay in hold state until user initiates connect */
         PrintDebug(L"Prestarted config \"%s\": put on hold", c->config_name);
-        c->failed_psw_attempts = 0;
-        c->state = onhold;
-        CheckAndSetTrayIcon();
-        SetMenuStatus (c, onhold);
-        SetDlgItemText (c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_SUSPENDED));
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), TRUE);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
+        SetState (c, onhold);
         SendMessage (GetDlgItem(c->hwndStatus, ID_DISCONNECT), WM_SETTEXT, 0,
-           (LPARAM) LoadLocalizedString (IDS_MENU_CONNECT));
+            (LPARAM) LoadLocalizedString (IDS_MENU_CONNECT));
+        c->failed_psw_attempts = 0;
     }
     else
         HoldRelease (c);
@@ -224,16 +272,7 @@ OnStateChange(connection_t *c, char *data)
         /* Save time when we got connected. */
         c->connected_since = atoi(data);
         c->failed_psw_attempts = 0;
-        c->state = connected;
-
-        SetMenuStatus(c, connected);
-        SetTrayIcon(connected);
-
-        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTED));
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTED);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), TRUE);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), TRUE);
-
+        SetState (c, connected);
         /* Hide Status Window */
         ShowWindow(c->hwndStatus, SW_HIDE);
         PrintDebug (L"Config \"%s\" connected to VPN server", c->config_name);
@@ -244,11 +283,7 @@ OnStateChange(connection_t *c, char *data)
              strcmp(state, "GET_CONFIG") == 0 ||
              strcmp(state, "ASSIGN_IP") == 0 ))
     {
-        c->state = connecting;
-        SetMenuStatus(c, connecting);
-        CheckAndSetTrayIcon(connecting);
-        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTING));
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
+        SetState (c, connecting);
     }
     else if (strcmp(state, "RECONNECTING") == 0)
     {
@@ -265,11 +300,7 @@ OnStateChange(connection_t *c, char *data)
         else if (c->failed_psw_attempts >= o.psw_attempts - 1)
             ManagementCommand(c, "auth-retry none", NULL, regular);
 
-        c->state = reconnecting;
-        CheckAndSetTrayIcon();
-
-        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_RECONNECTING));
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
+        SetState (c, reconnecting);
         PrintDebug (L"Config \"%s\" reconnecting to VPN server", c->config_name);
     }
     PrintDebug (L">OnStateChange: \"%s\" state = %d", c->config_name, c->state);
@@ -463,23 +494,15 @@ void
 OnStop(connection_t *c, UNUSED char *msg)
 {
     UINT txt_id, msg_id;
-    TCHAR *msg_xtra;
 
     PrintDebug (L"<OnStop: \"%s\" state = %d", c->config_name, c->state);
-
-    SetMenuStatus(c, disconnected);
 
     switch (c->state)
     {
     case connected:
         /* OpenVPN process ended unexpectedly */
         c->failed_psw_attempts = 0;
-        c->state = disconnected;
-        CheckAndSetTrayIcon();
-        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_DISCONNECTED));
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
+        SetState (c, disconnected);
         if (o.silent_connection[0] == '0')
         {
             SetForegroundWindow(c->hwndStatus);
@@ -492,43 +515,51 @@ OnStop(connection_t *c, UNUSED char *msg)
     case resuming:
     case connecting:
     case reconnecting:
-    case waiting:
         /* We have failed to (re)connect */
         txt_id = c->state == reconnecting ? IDS_NFO_STATE_FAILED_RECONN : IDS_NFO_STATE_FAILED;
         msg_id = c->state == reconnecting ? IDS_NFO_RECONN_FAILED : IDS_NFO_CONN_FAILED;
-        msg_xtra = c->state == waiting ? c->log_path : c->config_name;
-        if (c->state == waiting)
-            msg_id = IDS_NFO_CONN_TIMEOUT;
 
-        c->state = disconnected;
-        CheckAndSetTrayIcon();
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
+        SetState (c, disconnected);
         SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(txt_id));
         if (o.silent_connection[0] == '0')
         {
             SetForegroundWindow(c->hwndStatus);
             ShowWindow(c->hwndStatus, SW_SHOW);
         }
-        ShowLocalizedMsg(msg_id, msg_xtra);
+        ShowLocalizedMsg(msg_id, c->config_name);
         SendMessage(c->hwndStatus, WM_CLOSE, 0, 0);
         PrintDebug(L"Config \"%s\" failed to connect", c->config_name);
+        break;
+
+    case waiting:
+        SetState (c, disconnected);
+        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_FAILED));
+        if (c->flags & FLAG_PRESTARTED)
+        {
+            PrintDebug(L"Config \"%s\": no prestarted instance found -- resetting to interactive mode",
+                c->config_name);
+            break;
+        }
+        if (o.silent_connection[0] == '0')
+        {
+            SetForegroundWindow(c->hwndStatus);
+            ShowWindow(c->hwndStatus, SW_SHOW);
+        }
+        ShowLocalizedMsg(IDS_NFO_CONN_TIMEOUT, c->log_path);
+        SendMessage(c->hwndStatus, WM_CLOSE, 0, 0);
+        PrintDebug(L"Config \"%s\" failed to connect -- management timeout", c->config_name);
         break;
 
     case onhold:
     case disconnecting:
         /* Shutdown was initiated by us */
         c->failed_psw_attempts = 0;
-        c->state = disconnected;
-        CheckAndSetTrayIcon();
+        SetState (c, disconnected);
         SendMessage(c->hwndStatus, WM_CLOSE, 0, 0);
         break;
 
     case suspending:
-        c->state = suspended;
-        CheckAndSetTrayIcon();
-        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_SUSPENDED));
+        SetState (c, suspended);
         break;
 
     default:
@@ -893,10 +924,8 @@ StatusDialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
             return TRUE;
 
         case ID_RESTART:
-            c->state = reconnecting;
+            SetState (c, reconnecting);
             SetFocus(GetDlgItem(c->hwndStatus, ID_EDT_LOG));
-            EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-            EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
             ManagementCommand(c, "signal SIGHUP", NULL, regular);
             return TRUE;
         }
@@ -946,20 +975,22 @@ ThreadOpenVPNStatus(void *p)
     /* Cut of extention from config filename. */
     _tcsncpy(conn_name, c->config_file, _countof(conn_name));
     conn_name[_tcslen(conn_name) - _tcslen(o.ext_string) - 1] = _T('\0');
-
-    c->state = (c->state == suspended ? resuming : waiting);
+#ifdef DEBUG
+    if (c->flags & FLAG_SERVICE_ONLY)
+       wcsncat (conn_name, L" - exclusively service-controlled", 200);
+    else if (c->flags & FLAG_PRESTARTED)
+       wcsncat (conn_name, L" - connected to prestarted instance", 200);
+    else
+       wcsncat (conn_name, L" - interactively launched", 200);
+#endif
 
     /* Create and Show Status Dialog */
     c->hwndStatus = CreateLocalizedDialogParam(ID_DLG_STATUS, StatusDialogFunc, (LPARAM) c);
     if (!c->hwndStatus)
         return 1;
 
-    CheckAndSetTrayIcon();
-    SetMenuStatus (c, waiting);
-    SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, _T("Waiting for OpenVPN"));
+    SetState (c, (c->state == suspended) ? resuming:waiting);
     SetWindowText(c->hwndStatus, LoadLocalizedString(IDS_NFO_CONNECTION_XXX, conn_name));
-    EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-    EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
 
     if (!OpenManagement(c))
         PostMessage(c->hwndStatus, WM_CLOSE, 0, 0);
@@ -999,33 +1030,21 @@ ThreadOpenVPNStatus(void *p)
             switch (msg.message)
             {
             case WM_OVPN_STOP:
-                c->state = disconnecting;
+                SetState (c, disconnecting);
                 RunDisconnectScript(c, false);
-                EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-                EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
-                SetMenuStatus(c, disconnecting);
-                SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_WAIT_TERM));
                 SetEvent(c->exit_event);
                 break;
 
             case WM_OVPN_SUSPEND:
-                c->state = suspending;
-                EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-                EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
-                SetMenuStatus(c, disconnecting);
-                SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_WAIT_TERM));
+                SetState (c,suspending);
                 SetEvent(c->exit_event);
                 break;
 
              case WM_OVPN_HOLD:
                 if (c->state == onhold || c->state == disconnecting )
                    break;
-                c->state = disconnecting;
+                SetState (c, disconnecting);
                 RunDisconnectScript(c, false);
-                EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-                EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
-                SetMenuStatus(c, disconnecting);
-                SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_WAIT_TERM));
                 ManagementCommand(c, "hold on", NULL, regular);
                 ManagementCommand(c, "signal SIGHUP", NULL, regular);
                 break;
@@ -1082,13 +1101,7 @@ ConnectOpenVPN (connection_t *c)
    if (c->state == onhold)
    {
         PrintDebug(L"Connecting to prestarted instance \"%s\"", c->config_name);
-        c->state = connecting;
-        CheckAndSetTrayIcon();
-        SetMenuStatus(c, connecting);
-        SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTING));
-        SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-        EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
+        SetState (c, connecting);
         SendMessage (GetDlgItem(c->hwndStatus, ID_DISCONNECT), WM_SETTEXT, 0,
                      (LPARAM) LoadLocalizedString (IDS_MENU_DISCONNECT));
         if (o.silent_connection[0] == '0')
