@@ -536,6 +536,7 @@ OnStop(connection_t *c, UNUSED char *msg)
         SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_FAILED));
         if (c->flags & FLAG_PRESTARTED)
         {
+            SendMessage(c->hwndStatus, WM_CLOSE, 0, 0);
             PrintDebug(L"Config \"%s\": no prestarted instance found -- resetting to interactive mode",
                 c->config_name);
             break;
