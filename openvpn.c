@@ -534,6 +534,9 @@ OnStop(connection_t *c, UNUSED char *msg)
     default:
         break;
     }
+    /* OpenVPN has quit -- disbale any prestarted flag unless SERVICE_ONLY is set */
+    if (!(c->flags & FLAG_SERVICE_ONLY))
+        c->flags &= ~FLAG_PRESTARTED;
     PrintDebug (L">OnStop: \"%s\" state = %d", c->config_name, c->state);
 }
 
@@ -1166,6 +1169,12 @@ StartOpenVPN(connection_t *c)
 
     CLEAR(c->ip);
 
+    if (c->hwndStatus)
+    {
+        PrintDebug(L"Connection request when previous status window is still open -- ignored");
+        SetForegroundWindow(c->hwndStatus);
+        return FALSE;
+    }
     RunPreconnectScript(c);
     if (c->flags & FLAG_PRESTARTED)
         return StartOpenVPNThread (c);

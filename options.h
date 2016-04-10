@@ -85,6 +85,7 @@ typedef struct {
 } service_io_t;
 #define FLAG_PRESTARTED 1
 #define FLAG_AUTO_CONNECT 2
+#define FLAG_SERVICE_ONLY 4
 
 /* Connections parameters */
 struct connection {

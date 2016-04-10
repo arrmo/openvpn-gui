@@ -111,8 +111,11 @@ OpenManagement(connection_t *c)
         return FALSE;
     }
 
+    if (c->flags & FLAG_PRESTARTED)
+        c->manage.timeout = 0;  /* timeout promptly */
+    else
+        c->manage.timeout = time(NULL) + max_connect_time;
     connect(c->manage.sk, (SOCKADDR *) &c->manage.addr, sizeof(c->manage.addr));
-    c->manage.timeout = time(NULL) + max_connect_time;
 
     return TRUE;
 }
@@ -239,7 +242,7 @@ OnManagement(SOCKET sk, LPARAM lParam)
     case FD_CONNECT:
         if (WSAGETSELECTERROR(lParam))
         {
-            if (time(NULL) < c->manage.timeout || c->flags & FLAG_PRESTARTED)
+            if (time(NULL) < c->manage.timeout || c->flags & FLAG_SERVICE_ONLY)
             {
                 connect(c->manage.sk, (SOCKADDR *) &c->manage.addr, sizeof(c->manage.addr));
             }
@@ -253,7 +256,6 @@ OnManagement(SOCKET sk, LPARAM lParam)
         else
         {
             c->manage.connected = TRUE;
-            c->state = connecting;
             PrintDebug(L"Config \"%s\": connected to management interface", c->config_name);
         }
         break;

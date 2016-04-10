@@ -146,6 +146,8 @@ SetMgmtParams (connection_t *c)
             *port = L'\0';
             *host = L'\0';
         }
+        else if (wcsncmp (p, L"#SERVICE_ONLY", 13) == 0)
+            c->flags |= FLAG_SERVICE_ONLY;
     }
     fclose (fd);
 
@@ -317,8 +319,8 @@ AddConfigFileToList(const TCHAR *filename, const TCHAR *config_dir)
             break;
         }
     }
-    PrintDebug (L"AddConfig: added config \"%s\" with index = %d prestarted = %d",
-                c->config_name, c->index, c->flags & FLAG_PRESTARTED);
+    PrintDebug (L"AddConfig: added config \"%s\" with index = %d flags = %d",
+                c->config_name, c->index, c->flags);
     o.num_configs++;
 }
 
