@@ -181,7 +181,6 @@
     <ClInclude Include="passphrase.h" />
     <ClInclude Include="proxy.h" />
     <ClInclude Include="registry.h" />
-    <ClInclude Include="res\resource.h" />
     <ClInclude Include="scripts.h" />
     <ClInclude Include="service.h" />
     <ClInclude Include="tray.h" />
