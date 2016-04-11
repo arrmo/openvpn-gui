@@ -73,7 +73,7 @@ SetState (connection_t *c, conn_state_t state)
     CheckAndSetTrayIcon();
     SetMenuStatus (c, state);
     EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), FALSE);
-    EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
+    EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), TRUE);
 
     switch (state)
     {
@@ -84,11 +84,13 @@ SetState (connection_t *c, conn_state_t state)
         case waiting:
             SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, _T("Waiting for OpenVPN"));
             SetStatusWinIcon(c->hwndStatus, ID_ICO_DISCONNECTED);
-            break;
+			EnableWindow(GetDlgItem(c->hwndStatus, ID_RESTART), FALSE);
+			break;
         case connecting:
             SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_CONNECTING));
             SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
-            break;
+			EnableWindow(GetDlgItem(c->hwndStatus, ID_DISCONNECT), TRUE);
+			break;
         case reconnecting:
             SetDlgItemText(c->hwndStatus, ID_TXT_STATUS, LoadLocalizedString(IDS_NFO_STATE_RECONNECTING));
             SetStatusWinIcon(c->hwndStatus, ID_ICO_CONNECTING);
@@ -190,8 +192,23 @@ OnLogLine(connection_t *c, char *line)
     if (message - 1 == NULL)
         return;
 
-    if (strncmp (message, "MANAGEMENT:", 11) == 0)
-        return;
+	if (strncmp(message, "MANAGEMENT:", 11) == 0) {
+//#ifdef DEBUG
+		/* Set font and fontsize of the log window */
+		CHARFORMAT cfm = {
+			.cbSize = sizeof(CHARFORMAT),
+			.dwMask = CFM_SIZE | CFM_FACE | CFM_BOLD | CFM_COLOR,
+			.szFaceName = _T("Arial"),
+			.dwEffects = 0,
+			.yHeight = 120,
+			.crTextColor = 0x00808080
+		};
+		if (SendMessage(logWnd, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfm) == 0)
+			ShowLocalizedMsg(IDS_ERR_SET_SIZE);
+//#else
+//		return;
+//#endif
+	}
 
     /* Remove lines from log window if it is getting full */
     if (SendMessage(logWnd, EM_GETLINECOUNT, 0, 0) > MAX_LOG_LINES)
