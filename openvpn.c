@@ -193,7 +193,7 @@ OnLogLine(connection_t *c, char *line)
         return;
 
 	if (strncmp(message, "MANAGEMENT:", 11) == 0) {
-//#ifdef DEBUG
+#ifdef DEBUG
 		/* Set font and fontsize of the log window */
 		CHARFORMAT cfm = {
 			.cbSize = sizeof(CHARFORMAT),
@@ -205,9 +205,9 @@ OnLogLine(connection_t *c, char *line)
 		};
 		if (SendMessage(logWnd, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfm) == 0)
 			ShowLocalizedMsg(IDS_ERR_SET_SIZE);
-//#else
-//		return;
-//#endif
+#else
+		return;
+#endif
 	}
 
     /* Remove lines from log window if it is getting full */
